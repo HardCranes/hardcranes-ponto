@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatarReais, formatarDuracao } from "@/lib/dinheiro";
 import { formatarData, formatarHora } from "@/lib/datas";
+import { TIPO_LABEL } from "@/lib/types";
 import type { LinhaFechamento } from "@/lib/fechamento";
 
 /** Dia da semana curto ("sáb.", "seg.") avaliado no fuso de São Paulo. */
@@ -92,6 +93,51 @@ export default function FechamentoTabela({
         { wch: 16 },
       ];
       XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
+
+      // ---------- Aba: Localizações (uma linha por batida, com link do mapa) ----------
+      const locAoa: (string | number)[][] = [
+        ["LOCALIZAÇÕES DAS BATIDAS — HARD CRANES"],
+        [`Mês de referência: ${rotulo}`],
+        [],
+        ["Colaborador", "Data", "Hora", "Tipo", "Precisão (m)", "Link do mapa"],
+      ];
+      const urls: string[] = [];
+      for (const l of linhas) {
+        for (const d of l.dias) {
+          for (const b of d.batidas) {
+            if (b.latitude != null && b.longitude != null) {
+              const url = `https://www.google.com/maps?q=${b.latitude},${b.longitude}`;
+              locAoa.push([
+                l.nome,
+                formatarData(d.dia),
+                formatarHora(b.data_hora),
+                TIPO_LABEL[b.tipo],
+                b.precisao_m != null ? Math.round(b.precisao_m) : "",
+                url,
+              ]);
+              urls.push(url);
+            }
+          }
+        }
+      }
+      if (urls.length === 0) {
+        locAoa.push(["Nenhuma batida com localização neste mês."]);
+      }
+      const wsLoc = XLSX.utils.aoa_to_sheet(locAoa);
+      // Torna a coluna do link clicável.
+      urls.forEach((u, i) => {
+        const ref = XLSX.utils.encode_cell({ c: 5, r: 4 + i });
+        if (wsLoc[ref]) wsLoc[ref].l = { Target: u, Tooltip: "Abrir no Google Maps" };
+      });
+      wsLoc["!cols"] = [
+        { wch: 24 },
+        { wch: 12 },
+        { wch: 8 },
+        { wch: 10 },
+        { wch: 12 },
+        { wch: 46 },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsLoc, "Localizações");
 
       // ---------- Uma aba por colaborador (cartão de presença) ----------
       const usados = new Set<string>();
