@@ -78,14 +78,33 @@ export default function FechamentoTabela({
       wb.creator = "Hard Cranes";
       wb.created = new Date();
 
+      // Logo oficial (versão clara, p/ fundo escuro) embutido no cabeçalho.
+      let logoId: number | null = null;
+      try {
+        const respLogo = await fetch("/logo-light.png");
+        if (respLogo.ok) {
+          const abLogo = await respLogo.arrayBuffer();
+          logoId = wb.addImage({ buffer: abLogo, extension: "png" });
+        }
+      } catch {
+        // Sem logo não é impeditivo — a planilha sai mesmo assim.
+      }
+
       const banner = (ws: any, texto: string, ncols: number) => {
         ws.mergeCells(1, 1, 1, ncols);
         const c = ws.getCell(1, 1);
         c.value = texto;
         c.font = { bold: true, size: 14, color: { argb: VERDE } };
         c.fill = fill(CHUMBO);
-        c.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
-        ws.getRow(1).height = 28;
+        c.alignment = { vertical: "middle", horizontal: "center" };
+        ws.getRow(1).height = 48;
+        if (logoId != null) {
+          ws.addImage(logoId, {
+            tl: { col: 0.15, row: 0.18 },
+            ext: { width: 132, height: 44 },
+            editAs: "oneCell",
+          });
+        }
       };
       const cabecalho = (ws: any, rowIdx: number, titulos: string[]) => {
         const row = ws.getRow(rowIdx);
