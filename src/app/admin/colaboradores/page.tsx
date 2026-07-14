@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { assinarUrl, BUCKET_CADASTRO } from "@/lib/supabase/storage";
 import { formatarReais } from "@/lib/dinheiro";
+import ColaboradorAcoes from "@/components/admin/ColaboradorAcoes";
 import type { Colaborador } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -39,50 +40,55 @@ export default async function ColaboradoresPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {comFoto.map((c) => (
-            <Link
+            <div
               key={c.id}
-              href={`/admin/colaboradores/${c.id}`}
-              className={`flex items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition hover:border-hard-green ${
+              className={`flex items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm ${
                 c.ativo ? "border-gray-200" : "border-gray-200 opacity-60"
               }`}
             >
-              <div className="h-16 w-16 overflow-hidden rounded-full bg-gray-200">
-                {c._foto ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={c._foto}
-                    alt={c.nome}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xl font-bold text-gray-500">
-                    {c.nome.charAt(0)}
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold">{c.nome}</span>
-                <span className="text-sm text-gray-500">
-                  {formatarReais(c.valor_hora)}/h
-                </span>
-                <div className="mt-1 flex gap-2">
-                  {!c.ativo && (
-                    <span className="rounded bg-gray-200 px-2 py-0.5 text-xs">
-                      Inativo
-                    </span>
+              <Link
+                href={`/admin/colaboradores/${c.id}`}
+                className="flex flex-1 items-center gap-4 transition hover:opacity-80"
+              >
+                <div className="h-16 w-16 overflow-hidden rounded-full bg-gray-200">
+                  {c._foto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c._foto}
+                      alt={c.nome}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xl font-bold text-gray-500">
+                      {c.nome.charAt(0)}
+                    </div>
                   )}
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs ${
-                      c.consentimento_lgpd
-                        ? "bg-hard-green-light text-hard-green-dark"
-                        : "bg-alert-amber-bg text-alert-amber"
-                    }`}
-                  >
-                    {c.consentimento_lgpd ? "LGPD ok" : "Sem consentimento"}
-                  </span>
                 </div>
-              </div>
-            </Link>
+                <div className="flex flex-col">
+                  <span className="font-bold">{c.nome}</span>
+                  <span className="text-sm text-gray-500">
+                    {formatarReais(c.valor_hora)}/h
+                  </span>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {!c.ativo && (
+                      <span className="rounded bg-gray-200 px-2 py-0.5 text-xs">
+                        Inativo
+                      </span>
+                    )}
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs ${
+                        c.consentimento_lgpd
+                          ? "bg-hard-green-light text-hard-green-dark"
+                          : "bg-alert-amber-bg text-alert-amber"
+                      }`}
+                    >
+                      {c.consentimento_lgpd ? "LGPD ok" : "Sem consentimento"}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+              <ColaboradorAcoes id={c.id} nome={c.nome} ativo={c.ativo} />
+            </div>
           ))}
         </div>
       )}

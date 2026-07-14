@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { enviarFotoCadastro } from "@/lib/supabase/storage";
+import {
+  enviarFotoCadastro,
+  apagarFoto,
+  BUCKET_CADASTRO,
+} from "@/lib/supabase/storage";
 import { gerarHashPin, pinValido } from "@/lib/pin";
 
 /** Garante que há um admin logado antes de qualquer mutação. */
@@ -15,7 +19,12 @@ async function exigirLogin() {
   return user;
 }
 
-export type ResultadoAcao = { ok: boolean; erro?: string; id?: string };
+export type ResultadoAcao = {
+  ok: boolean;
+  erro?: string;
+  id?: string;
+  bloqueado?: boolean; // exclusão barrada por já ter histórico
+};
 
 export async function criarColaborador(dados: {
   nome: string;
@@ -122,6 +131,80 @@ export async function atualizarColaborador(
     revalidatePath("/admin/colaboradores");
     revalidatePath(`/admin/colaboradores/${id}`);
     return { ok: true, id };
+  } catch (e: any) {
+    return { ok: false, erro: e?.message ?? "Erro inesperado." };
+  }
+}
+
+/** Ativa/desativa (reversível). Desativar tira da grade do quiosque sem apagar. */
+export async function definirAtivoColaborador(
+  id: string,
+  ativo: boolean
+): Promise<ResultadoAcao> {
+  try {
+    await exigirLogin();
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("ponto_colaboradores")
+      .update({ ativo })
+      .eq("id", id);
+    if (error) return { ok: false, erro: error.message };
+    revalidatePath("/admin/colaboradores");
+    return { ok: true, id };
+  } catch (e: any) {
+    return { ok: false, erro: e?.message ?? "Erro inesperado." };
+  }
+}
+
+/**
+ * Exclusão DEFINITIVA — só permitida se o colaborador NÃO tiver histórico
+ * (nenhuma batida em ponto_registros nem acerto em ponto_acertos). Caso tenha,
+ * bloqueia e orienta a desativar (para não apagar comprovante de horas).
+ */
+export async function excluirColaborador(id: string): Promise<ResultadoAcao> {
+  try {
+    await exigirLogin();
+    const admin = createAdminClient();
+
+    const [{ count: nReg }, { count: nAce }] = await Promise.all([
+      admin
+        .from("ponto_registros")
+        .select("*", { count: "exact", head: true })
+        .eq("colaborador_id", id),
+      admin
+        .from("ponto_acertos")
+        .select("*", { count: "exact", head: true })
+        .eq("colaborador_id", id),
+    ]);
+
+    if ((nReg ?? 0) > 0 || (nAce ?? 0) > 0) {
+      return {
+        ok: false,
+        bloqueado: true,
+        erro:
+          "Este colaborador já possui histórico de presença/pagamento e não pode ser excluído, pois isso apagaria o comprovante de horas trabalhadas. Use “Desativar” para removê-lo da lista de uso sem perder o histórico.",
+      };
+    }
+
+    // Pega o caminho da foto de referência para apagar do Storage depois.
+    const { data: c } = await admin
+      .from("ponto_colaboradores")
+      .select("foto_cadastro_url")
+      .eq("id", id)
+      .single();
+
+    const { error } = await admin
+      .from("ponto_colaboradores")
+      .delete()
+      .eq("id", id);
+    if (error) return { ok: false, erro: error.message };
+
+    if (c?.foto_cadastro_url) {
+      await apagarFoto(BUCKET_CADASTRO, c.foto_cadastro_url);
+    }
+
+    revalidatePath("/admin/colaboradores");
+    return { ok: true };
   } catch (e: any) {
     return { ok: false, erro: e?.message ?? "Erro inesperado." };
   }
