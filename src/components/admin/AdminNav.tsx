@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/registros", label: "Registros" },
   { href: "/admin/acertos", label: "Acertos" },
   { href: "/admin/fechamento", label: "Fechamento" },
+  { href: "/admin/administradores", label: "Administradores" },
 ];
 
 export default function AdminNav({ email }: { email: string | null }) {

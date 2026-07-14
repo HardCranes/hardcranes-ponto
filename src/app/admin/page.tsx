@@ -25,6 +25,11 @@ const CARTOES = [
     titulo: "Fechamento",
     texto: "Somar horas, ver o total a pagar e exportar a planilha.",
   },
+  {
+    href: "/admin/administradores",
+    titulo: "Administradores",
+    texto: "Criar ou remover logins de acesso ao painel.",
+  },
 ];
 
 export default async function AdminHome() {
